@@ -13,7 +13,8 @@ byte Rel_4 = D4;
 
 byte pin_arr[] = {Rel_1, Rel_2, Rel_3, Rel_4};
 
-uint16_t start_delay = 2000;
+byte count = 1;
+uint16_t start_delay = 1000;
 uint16_t pause = 500;
 uint64_t system_startup = 0;
 uint64_t previus_time = 0;
@@ -85,7 +86,7 @@ void running_point(byte mode, uint16_t pause = 0)
       {
         delay(pause);
         // Serial.println("OFF " + String(pin_arr[i + 1]));
-        digitalWrite(pin_arr[i + 1], OFF);
+          digitalWrite(pin_arr[i + 1], OFF);
       }
     }
   }
@@ -106,23 +107,45 @@ void setup()
 
 void loop()
 {
-  Serial.println("running point direct paus");
-  running_point(DIRECT, pause);
-  Serial.println("running point reverse pause");
-  running_point(REVERSE, pause);
+  count++;
+  
+  switch (count)
+  {
+    case 1:
+      Serial.println("running point direct paus");
+      running_point(DIRECT, pause);
+      break;
 
-  Serial.println("running point direct");
-  running_point(DIRECT);
-  Serial.println("running point reverse");
-  running_point(REVERSE);
-
-  Serial.println("light bar direct");
-  light_bar(DIRECT, start_delay);
-  Serial.println("light bar reverse");
-  light_bar(REVERSE, start_delay);
-
-  Serial.println("ON all lamps");
-  set_all_rel(ON);
-  Serial.println("OFF all lamps");
-  set_all_rel(OFF);
+    case 2:
+      Serial.println("running point reverse pause");
+      running_point(REVERSE, pause);
+      break;
+    case 3:  
+      Serial.println("running point direct");
+      running_point(DIRECT);
+      break;
+    case 4:
+      Serial.println("running point reverse");
+      running_point(REVERSE);
+      break;
+    case 5:
+      Serial.println("light bar direct");
+      light_bar(DIRECT, start_delay);
+      break;
+    case 6:
+      Serial.println("light bar reverse");
+      light_bar(REVERSE, start_delay);
+      break;
+    case 7:
+     Serial.println("ON all lamps");
+     set_all_rel(ON);
+      break;
+    case 8:
+      Serial.println("OFF all lamps");
+      set_all_rel(OFF);
+      count = 0;
+      break;
+  }
+  delay(15000);
+  
 }
