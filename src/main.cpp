@@ -139,12 +139,10 @@ void loop()
     case 7:
      Serial.println("ON all lamps");
      set_all_rel(ON);
-      break;
-    case 8:
-      Serial.println("OFF all lamps");
-      set_all_rel(OFF);
-      count = 0;
-      break;
+     delay(1000);
+     set_all_rel(OFF);
+     count = 0;
+     break;
   }
   delay(15000);
   
