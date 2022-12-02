@@ -1,10 +1,15 @@
-#include <Arduino.h>
-#include <Ticker.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
+#include <ArduinoOTA.h>
+#include "OTA.h"
 
 #define ON 0
 #define OFF 1
 #define DIRECT 1
 #define REVERSE 0
+
+ESP8266HTTPUpdateServer httpUpdater;
+ESP8266WebServer server(80);
 
 byte Rel_1 = D1;
 byte Rel_2 = D2;
@@ -13,89 +18,93 @@ byte Rel_4 = D4;
 
 byte pin_arr[] = {Rel_1, Rel_2, Rel_3, Rel_4};
 
-byte count = 1;
-uint16_t start_delay = 1000;
-uint16_t pause = 500;
-uint64_t system_startup = 0;
-uint64_t previus_time = 0;
+unsigned long system_run_time = 0;
+unsigned long timer_on = 0;
+unsigned long timer_off = 0;
+uint16_t cycle_pause = 2000;
+uint16_t turn_on_delay = 2000;
+uint16_t turn_off_delay = 500;
+uint16_t work_time = 1000;
 
-void set_one_rel(byte mode, byte num_rel)
+void all_set_state(bool state)
 {
-  digitalWrite(num_rel, mode);
-}
-
-void set_all_rel(bool state)
-{
-  delay(start_delay);
+  delay(cycle_pause);
+  Serial.println("FULL STATE");
   for (byte i = 0; i < 4; i++)
   {
     digitalWrite(pin_arr[i], state);
   }
 }
 
-void light_bar(byte mode, uint16_t pause = 0)
+void light_bar(bool dir)
 {
-  if (mode == DIRECT)
+  if (dir == 1)
   {
+    Serial.println("Прямое свечение");
     for (byte i = 0; i < 4; i++)
     {
-      delay(pause);
+      delay(turn_on_delay);
       digitalWrite(pin_arr[i], ON);
+      Serial.println("ON " + String(pin_arr[i]));
     }
+    all_set_state(OFF);
   }
 
-  if (mode == REVERSE)
+  if (dir == 0)
   {
-    for (int i = 3; i >= 0; i--)
+    Serial.println("Реверсивное свечение");
+    for (byte i = 3; i < 0; i--)
     {
-      delay(pause);
+      delay(turn_on_delay);
       digitalWrite(pin_arr[i], ON);
+      Serial.println("OFF " + String(pin_arr[i]));
     }
+    all_set_state(OFF);
   }
-  set_all_rel(OFF);
 }
 
-void running_point(byte mode, uint16_t pause = 0)
+void running_lights()
 {
-  if (mode == DIRECT)
+  for (byte i = 0; i < 4; i++)
   {
-    for (byte i = 0; i < 4; i++)
+    Serial.println(i);
+    while (true)
     {
-      delay(start_delay);
-      // Serial.println("ON " + String(pin_arr[i]));
-      digitalWrite(pin_arr[i], ON);
-
-      if (i > 0)
+      system_run_time = millis();
+      if (system_run_time - timer_on > turn_on_delay) // Включить лампу
       {
-        delay(pause);
-        // Serial.println("OFF " + String(pin_arr[i - 1]));
+        Serial.println("ON " + String(pin_arr[i]));
+        digitalWrite(pin_arr[i], ON);
+        timer_off = timer_on = system_run_time;
+
+        if (i == 0)
+        {
+          break;
+        }
+      }
+
+      if ((system_run_time - timer_off > turn_off_delay))
+      {
+        Serial.println("OFF " + String(pin_arr[i - 1]));
         digitalWrite(pin_arr[i - 1], OFF);
+        break;
       }
-    }
-  }
 
-  if (mode == REVERSE)
-  {
-    for (int i = 3; i >= 0; i--)
-    {
-      delay(start_delay);
-      // Serial.println("ON " + String(pin_arr[i]));
-      digitalWrite(pin_arr[i], ON);
-
-      if (i < 3)
-      {
-        delay(pause);
-        // Serial.println("OFF " + String(pin_arr[i + 1]));
-          digitalWrite(pin_arr[i + 1], OFF);
-      }
+      delay(1);
     }
+    Serial.println("\n");
   }
-  set_all_rel(OFF);
 }
 
 void setup()
 {
   Serial.begin(115200);
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP("LampStedUpdater");
+  WiFi.begin();
+
+  OTA_Update();
+
   for (byte i = 0; i < 4; i++)
   {
     pinMode(pin_arr[i], OUTPUT);
@@ -103,47 +112,24 @@ void setup()
     digitalWrite(pin_arr[i], OFF);
     delay(5);
   }
+  httpUpdater.setup(&server); // обновления через web-интерфейс  http://{local_IP}/update
+
+  server.begin();
 }
 
 void loop()
 {
-  count++;
-  
-  switch (count)
-  {
-    case 1:
-      Serial.println("running point direct paus");
-      running_point(DIRECT, pause);
-      break;
+  server.handleClient();
+  ArduinoOTA.handle();
 
-    case 2:
-      Serial.println("running point reverse pause");
-      running_point(REVERSE, pause);
-      break;
-    case 3:  
-      Serial.println("running point direct");
-      running_point(DIRECT);
-      break;
-    case 4:
-      Serial.println("running point reverse");
-      running_point(REVERSE);
-      break;
-    case 5:
-      Serial.println("light bar direct");
-      light_bar(DIRECT, start_delay);
-      break;
-    case 6:
-      Serial.println("light bar reverse");
-      light_bar(REVERSE, start_delay);
-      break;
-    case 7:
-     Serial.println("ON all lamps");
-     set_all_rel(ON);
-     delay(1000);
-     set_all_rel(OFF);
-     count = 0;
-     break;
-  }
-  delay(15000);
-  
+  // light_bar(1);
+
+  all_set_state(ON);
+
+  // light_bar(0);
+
+  all_set_state(OFF);
+  delay(7000);
+
+  yield();
 }
